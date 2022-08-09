@@ -12,7 +12,7 @@ $CenterScreen = [System.Windows.Forms.FormStartPosition]::CenterScreen
 # Define Dialog Box Size
 $SetupTool                      = New-Object system.Windows.Forms.Form
 $SetupTool.ClientSize           = '300,400'
-$SetupTool.text                 = ("WENT Remote Support Tool")
+$SetupTool.text                 = ("Remote Support Tool")
 #$SetupTool.BackColor            = "#d1d7e4"
 $SetupTool.TopMost              = $false
 $SetupTool.StartPosition         = $CenterScreen
