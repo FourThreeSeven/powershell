@@ -7,8 +7,6 @@ Import-Module ActiveDirectory
 $computers = (Get-ADComputer -Filter * | Sort-Object -Property @{Expression = "name"; Ascending = $true} | select name)
 $computers2 = (Get-ADComputer -Filter * -Properties description | Where-Object {$null -ne $_.description} | Sort-Object -Property @{Expression = "Description"; Ascending = $true} | select name, description)
 
-# Get-ADComputer -Filter * -Properties description | Where-Object {$null -ne $_.description} | Sort-Object -Property @{Expression = "Description"; Ascending = $true} | select name, description
-
 $CenterScreen = [System.Windows.Forms.FormStartPosition]::CenterScreen
 
 # Define Dialog Box Size
