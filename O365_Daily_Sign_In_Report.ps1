@@ -21,7 +21,7 @@ TD {border-width: 1px; padding: 3px; border-style: solid; border-color: black;}
 # HTML body information.
 $body = @"
 <p class="MsoNormal"><strong><span style="font-size: 12.0pt; line-height: 107%; color: #0070c0;"><span class="SpellE">AzureAD Daily Outside Access Summary:</span></strong></br>
-<p class="MsoNormal"><strong><span class="SpellE">Below is the daily summary of non-oregon based login attempts for AzureAD accounts at CONSOTO.com. %totals% records found in the last 24 hours.</span></strong></p>
+<p class="MsoNormal"><strong><span class="SpellE">Below is the daily summary of non-florida based login attempts for AzureAD accounts at CONSOTO.com. %totals% records found in the last 24 hours.</span></strong></p>
 <p style="font-weight: 400;"><span style="color: #999999;">Full reports can be found on Azure Active Directory - Sign-In Logs</span><br /></p>
 <p style="font-weight: 400;"><span style="color: #999999;"></span><br /></p>
 "@
