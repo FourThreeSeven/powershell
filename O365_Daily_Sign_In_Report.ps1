@@ -1,10 +1,16 @@
-﻿Function Get-AzureSignInLogs {
+Function Get-AzureSignInLogs {
 
 # Set date/time to one day prior.
 $range = "{0:yyyy-MM-dd}" -f (get-date).AddDays(-1)
 
+# State to Filter out of results.
+$state = "Florida"
+
+# Top Level Domain Name
+$TLDname = "consoto.com"
+
 # Get Sign-in logs for the previous day.
-$result = Get-AzureADAuditSignInLogs -Filter "createdDateTime gt $range" | Where-Object {$_.Location.State -ne "Florida"}
+$result = Get-AzureADAuditSignInLogs -Filter "createdDateTime gt $range" | Where-Object {$_.Location.State -ne $state}
 
 # Get count of records found.
 $total = ($result | Measure-Object | Select Count)
@@ -19,28 +25,40 @@ TD {border-width: 1px; padding: 3px; border-style: solid; border-color: black;}
 "@
 
 # HTML body information.
+
 $body = @"
 <p class="MsoNormal"><strong><span style="font-size: 12.0pt; line-height: 107%; color: #0070c0;"><span class="SpellE">AzureAD Daily Outside Access Summary:</span></strong></br>
-<p class="MsoNormal"><strong><span class="SpellE">Below is the daily summary of non-florida based login attempts for AzureAD accounts at CONSOTO.com. %totals% records found in the last 24 hours.</span></strong></p>
+<p class="MsoNormal"><strong><span class="SpellE">Below is the daily summary of non-%state% based login attempts for AzureAD accounts at %TLD%. %totals% records found in the last 24 hours.</span></strong></p>
 <p style="font-weight: 400;"><span style="color: #999999;">Full reports can be found on Azure Active Directory - Sign-In Logs</span><br /></p>
 <p style="font-weight: 400;"><span style="color: #999999;"></span><br /></p>
 "@
 
-# Replace %total% string in $body html with the $total count value.
-IF ($total.Count -eq 0) {$reportnumber = "No"} ELSE {$reportnumber = $total.Count}
 
 # Replaces the string %totals% in body HTML with the value of the report count.
+IF ($total.Count -eq 0) {$reportnumber = "No"} ELSE {$reportnumber = $total.Count}
 $body = ($body | ForEach-Object {
-    $_ -replace '%totals%',$reportnumber 
+    $_ -replace '%totals%',$reportnumber
 })
 
-# Adjust descriptions of failure reasons.
-$result | ForEach-Object {IF ($_.Status.ErrorCode -eq "50053") {$_.Status.FailureReason = "Too many Logon attempts."}}
-$result | ForEach-Object {IF ($_.Status.ErrorCode -eq "50126") {$_.Status.FailureReason = "Invalid credentials."}}
-$result | ForEach-Object {IF ($_.Status.ErrorCode -eq "50072") {$_.Status.FailureReason = "you must enroll in multi-factor.."}}
-$result | ForEach-Object {IF ($_.Status.ErrorCode -eq "53003") {$_.Status.FailureReason = "Blocked by CA Policies."}}
-$result | ForEach-Object {IF ($_.Status.ErrorCode -eq "0") {$_.Status.FailureReason = "Successful"}}
+# Replaces the string %state% in body HTML with the value of $state variable.
+$body = ($body | ForEach-Object {
+    $_ -replace '%state%',$state
+})
 
+# Replaces the string %TLD% in body HTML with the value of $TLDname variable.
+$body = ($body | ForEach-Object {
+    $_ -replace '%TLD%',$TLDname
+})
+
+# Replace FailureReason with more sensible and short explanatations. Fits the table in the email better.
+switch($result){
+    {$_.status.errorcode -eq "50053"}{$_.Status.Failurereason = "Too many Logon attempts"}
+    {$_.status.errorcode -eq "50126"}{$_.status.failurereason = "Invalid credentials"}
+    {$_.status.errorcode -eq "50072"}{$_.status.failurereason = "you must enroll in multi-factor.."}
+    {$_.status.errorcode -eq "53003"}{$_.status.failurereason = "Blocked by CA Policies"}
+    {$_.status.errorcode -eq "50074"}{$_.status.failurereason = "MFA step incomplete"}
+    {$_.status.errorcode -eq "0"}{$_.status.failurereason = "Successful"}
+}
 
 # Fix date/time format.
 $result | ForEach-Object {$_.CreatedDateTime = (Get-Date($_.CreatedDateTime) -Format g)}
@@ -54,8 +72,7 @@ Import-module AzureAdPreview
 
 Sleep 1
 
-# Connecting to AzureAD using Service Principal
-Connect-AzureAD -TenantId "<id>" -ApplicationId  "<appid>" -CertificateThumbprint "<thuumbprint>"
+Connect-AzureAD -TenantId "<id>" -ApplicationId  "<appid>" -CertificateThumbprint "<thumbprint>"
 
 Sleep 2
 
@@ -68,18 +85,20 @@ Disconnect-AzureAD
 # --- Prepare to send email.
 
 # Establigh credentials and email body
-$emailusername = "reporting@consoto.com"
-$encrypted = Get-Content "C:\temp\key.txt" | ConvertTo-SecureString
+$emailusername = "reporting@domain.com"
+$encrypted = Get-Content "C:\folder\key.txt" | ConvertTo-SecureString
 $SMTPServer = "smtp.office365.com"
 # $html = Get-Content -Path " " -Raw
 
 # Prepare message components
 $message = New-Object System.Net.Mail.MailMessage
-$message.From = "reporting@consoto.com"
-$message.To.Add("sysadmin@consoto.com")
+$message.From = "reporting@domain.com"
+$message.To.Add("admin@domain.com")
 $message.Subject = "AzureAD: Suspicious Sign-Ins for", (Get-Date -Format MM/dd/yyyy)
 $message.IsBodyHTML = $true
 $message.Body = $html
+# $message.Attachments.Add($file1) --If you need to include attachments!
+# $message.Attachments.Add($file2) --If you need to include attachments!
 
 # Send Message
 $smtp = New-Object System.Net.Mail.SmtpClient($SmtpServer, 587)
@@ -87,9 +106,3 @@ $smtp.EnableSsl = $true
 $credential = New-Object System.Net.NetworkCredential($emailuserName, $encrypted)
 $smtp.Credentials = $credential
 $smtp.Send($message)
-
-
-# Parse out Successful from Unsuccessful logins (Error Code 0 vs ####)
-
-# https://learn.microsoft.com/en-us/powershell/azure/active-directory/signing-in-service-principal?view=azureadps-2.0
-# https://jannikreinhard.com/2022/06/24/get-an-daily-device-report-via-email-or-teams-with-logic-apps-step-by-step-guide/
